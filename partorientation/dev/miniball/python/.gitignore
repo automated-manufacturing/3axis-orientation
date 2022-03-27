@@ -1,0 +1,7 @@
+miniball_python.so
+test.cpp
+test.py
+__pycache__
+dist/
+build/
+*.egg-info
