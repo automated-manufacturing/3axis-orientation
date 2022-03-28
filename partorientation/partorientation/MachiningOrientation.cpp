@@ -435,11 +435,18 @@ void macho::orientModelToMachiningDirection(vtkSmartPointer<vtkPolyData> meshMod
 	rotAx.normalize();
 	// calculate the angle between these two vectors
 	double rotAng = acos(machiningAngle.z());
+	const double PI = 4 * atan(1.);
+	rotAng *= 180 / PI;
 
-	/*
-	Well, I would apply the rotation to the model, but I can't figure out how the fuck vtk works
-	I was going to just pull all of the points out of the vtk data structure and transform them with Eigen or something, but I don't have any amount of willpower to figure out vtk's shit to do that right now
-	*/
+	// apply rotation to the model
+	vtkNew<vtkTransform> transform;
+	transform->RotateWXYZ(rotAng, rotAx.x(), rotAx.y(), rotAx.z());
+	transform->Update();
+	vtkNew<vtkTransformPolyDataFilter> transformFilter;
+	transformFilter->SetInputData(meshModel);
+	transformFilter->SetTransform(transform);
+	transformFilter->Update();
+	meshModel->DeepCopy(transformFilter->GetOutput());
 
 	return;
 }

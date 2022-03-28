@@ -37,6 +37,7 @@
 #include <vtkPoints.h>
 #include <vtkTransform.h>
 #include <vtkTransformPolyDataFilter.h>
+#include <vtkSTLWriter.h>
 
 #include "vtkAutoInit.h"
 VTK_MODULE_INIT(vtkRenderingOpenGL2);
