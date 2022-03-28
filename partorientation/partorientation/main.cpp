@@ -1,5 +1,4 @@
 #include "MachiningOrientation.h"
-#include <vtkSTLWriter.h>
 
 int main()
 {
@@ -11,11 +10,13 @@ int main()
 	macho::pick3axisMachiningDirection(meshModel);
 	//macho::autoFind3axisOrientation(meshModel);
 
-	//vtkNew<vtkSTLWriter> stlWriter;
-	//stlWriter->SetFileName("C:\\Users\\Andrew Dahl\\Desktop\\impeller_rot.stl");
-	//stlWriter->SetInputData(meshModel);
-	//stlWriter->SetFileTypeToBinary();
-	//stlWriter->Write();
+	macho::fixtureOrientByBoundingBox(meshModel);
+
+	vtkNew<vtkSTLWriter> stlWriter;
+	stlWriter->SetFileName("C:\\Users\\Andrew Dahl\\Desktop\\impeller_rot.stl");
+	stlWriter->SetInputData(meshModel);
+	stlWriter->SetFileTypeToBinary();
+	stlWriter->Write();
 
 	return 0;
 }

@@ -38,6 +38,7 @@
 #include <vtkTransform.h>
 #include <vtkTransformPolyDataFilter.h>
 #include <vtkSTLWriter.h>
+#include <vtkOBBTree.h>
 
 #include "vtkAutoInit.h"
 VTK_MODULE_INIT(vtkRenderingOpenGL2);
@@ -57,6 +58,8 @@ namespace macho
 	void pick3axisMachiningDirection(vtkSmartPointer<vtkPolyData> meshModel);
 	void autoFind3axisOrientation(vtkSmartPointer<vtkPolyData> meshModel);
 	void orientModelToMachiningDirection(vtkSmartPointer<vtkPolyData> meshModel, Eigen::Vector3d machiningAngle);
+	void fixtureOrientByBoundingBox(vtkSmartPointer<vtkPolyData> meshModel);
+	void orientModelForFixturing(vtkSmartPointer<vtkPolyData> meshModel, double zRotAngle);
 
 }
 

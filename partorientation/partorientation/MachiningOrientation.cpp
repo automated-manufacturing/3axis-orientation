@@ -450,3 +450,95 @@ void macho::orientModelToMachiningDirection(vtkSmartPointer<vtkPolyData> meshMod
 
 	return;
 }
+
+void macho::fixtureOrientByBoundingBox(vtkSmartPointer<vtkPolyData> meshModel)
+{
+	/*
+	This function rotates the model about the z axis to fit well in vice jaws
+	The assumption is that the model is well oriented when the long axis of the part aligns with the x axis
+	vtk has a tool to calculate OBB's, but like always I can't get it to work how I'd expect and I don't know what the f*** is going on in vtk to figure it out
+	instead, I'll render an image of the model and use openCV to find a 2d OBB
+	*/
+
+	// get the model bounds
+	double bounds[6];
+	vtkBoundingBox bbox;
+	for (int it = 0; it < meshModel->GetNumberOfPoints(); ++it)
+	{
+		bbox.AddPoint(meshModel->GetPoint(it));
+	}
+	bbox.GetBounds(bounds);
+	double centroid[3] = { (bounds[0] + bounds[1]) / 2, (bounds[2] + bounds[3]) / 2, (bounds[4] + bounds[5]) / 2 };
+
+	// Render scene settings
+	int windowSize = 900;
+	double backgroundColor[3] = { 0, 0, 0 };
+	vtkNew<vtkPolyDataMapper> mapper;
+	mapper->SetInputData(meshModel);
+	vtkNew<vtkActor> actor;
+	actor->SetMapper(mapper);
+	actor->GetProperty()->SetAmbientColor(1, 1, 1);
+	actor->GetProperty()->SetDiffuseColor(0, 0, 0);
+	actor->GetProperty()->SetSpecularColor(0, 0, 0);
+	actor->GetProperty()->SetSpecular(0);
+	actor->GetProperty()->SetDiffuse(0);
+	actor->GetProperty()->SetAmbient(1);
+	actor->GetProperty()->SetSpecularPower(0);
+	actor->GetProperty()->SetOpacity(1);
+	actor->GetProperty()->LightingOff();
+	vtkNew<vtkRenderer> renderer;
+	renderer->AddActor(actor);
+	renderer->SetBackground(backgroundColor);
+	renderer->GetActiveCamera()->ParallelProjectionOn();
+	renderer->GetActiveCamera()->SetFocalPoint(centroid[0], centroid[1], centroid[2]);
+	renderer->GetActiveCamera()->SetPosition(centroid[0], centroid[1], bounds[5]+2);
+	renderer->GetActiveCamera()->SetViewUp(0, 1, 0);
+	renderer->GetActiveCamera()->SetClippingRange(1, bounds[5]-bounds[4]+3);
+	renderer->GetActiveCamera()->SetParallelScale(std::max(bounds[1] - bounds[0], bounds[3] - bounds[2])/2*1.025);
+	vtkNew<vtkRenderWindow> renderWindow;
+	renderWindow->SetSize(windowSize, windowSize);
+	renderWindow->AddRenderer(renderer);
+	renderWindow->SetOffScreenRendering(true);
+	renderWindow->Render();
+
+	// bring image from vtk to opencv
+	vtkNew<vtkUnsignedCharArray> vtkPtr;
+	renderWindow->GetPixelData(0, 0, windowSize - 1, windowSize - 1, 1, vtkPtr);
+	cv::Mat img(windowSize, windowSize, CV_8UC3, vtkPtr->Begin());
+	cv::Mat imgThresh(windowSize, windowSize, CV_8UC1);
+	cv::flip(img, img, 0);
+	cv::cvtColor(img, imgThresh, cv::COLOR_BGR2GRAY);
+	cv::threshold(imgThresh, imgThresh, 127, 255, cv::THRESH_BINARY);
+
+	// assume there is only one contour, and that contour is the part
+	// get the oriented bounding box of that contour
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours(imgThresh, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE, cv::Point(0,0));
+	cv::RotatedRect rotRect;
+	rotRect = cv::minAreaRect(contours[0]);
+
+	std::cout << "fixturing angle:     " << 90 - rotRect.angle << " degrees";
+
+	macho::orientModelForFixturing(meshModel, rotRect.angle);
+
+	return;
+}
+
+void macho::orientModelForFixturing(vtkSmartPointer<vtkPolyData> meshModel, double zRotAngle)
+{
+	/*
+	rotate the mesh about the z axis for fixturing
+	*/
+
+	// apply rotation to the model
+	vtkNew<vtkTransform> transform;
+	transform->RotateWXYZ(zRotAngle-90, 0, 0, 1);
+	transform->Update();
+	vtkNew<vtkTransformPolyDataFilter> transformFilter;
+	transformFilter->SetInputData(meshModel);
+	transformFilter->SetTransform(transform);
+	transformFilter->Update();
+	meshModel->DeepCopy(transformFilter->GetOutput());
+
+	return;
+}
